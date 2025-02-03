@@ -187,7 +187,7 @@ pub fn test_get_range_proof<V: TestKey>((btree, n): (BTreeMap<HashValue, (HashVa
     );
 }
 
-fn test_existent_keys_impl<V: TestKey, J: JellyfishMerkleTree<MockTreeStore<V>>>(
+fn test_existent_keys_impl<V: TestKey, J: JellyfishMerkleTree<V>>(
     tree: J,
     version: Version,
     existent_kvs: &HashMap<HashValue, (HashValue, V)>,
@@ -203,7 +203,7 @@ fn test_existent_keys_impl<V: TestKey, J: JellyfishMerkleTree<MockTreeStore<V>>>
     }
 }
 
-fn test_nonexistent_keys_impl<V: TestKey, J: JellyfishMerkleTree<MockTreeStore<V>>>(
+fn test_nonexistent_keys_impl<V: TestKey, J: JellyfishMerkleTree<V>>(
     tree: J,
     version: Version,
     nonexistent_keys: &[HashValue],

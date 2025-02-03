@@ -11,6 +11,7 @@ use aptos_storage_interface::{db_ensure as ensure, db_other_bail, AptosDbError};
 use aptos_types::transaction::Version;
 use std::collections::{hash_map::Entry, BTreeSet, HashMap};
 
+#[derive(Debug)]
 pub struct MockTreeStore<K> {
     data: RwLock<(HashMap<NodeKey, Node<K>>, BTreeSet<StaleNodeIndex>)>,
     allow_overwrite: bool,
