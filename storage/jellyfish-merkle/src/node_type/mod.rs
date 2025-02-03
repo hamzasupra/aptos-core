@@ -16,7 +16,7 @@ mod node_type_test;
 use crate::{
     get_hash,
     metrics::{APTOS_JELLYFISH_INTERNAL_ENCODED_BYTES, APTOS_JELLYFISH_LEAF_ENCODED_BYTES},
-    Key, TreeReader,
+    JellyfishMerkleTree, Key,
 };
 use anyhow::{ensure, Context, Result};
 use aptos_crypto::{
@@ -515,7 +515,7 @@ impl InternalNode {
         }
     }
 
-    fn gen_node_in_proof<K: crate::Key, R: TreeReader<K>>(
+    fn gen_node_in_proof<K: crate::Key, R: JellyfishMerkleTree<K>>(
         &self,
         start: u8,
         width: u8,
@@ -592,7 +592,7 @@ impl InternalNode {
     ///     |   MSB|<---------------------- uint 16 ---------------------------->|LSB
     ///  height    chs: `child_half_start`         shs: `sibling_half_start`
     /// ```
-    pub fn get_child_with_siblings<K: crate::Key, R: TreeReader<K>>(
+    pub fn get_child_with_siblings<K: crate::Key, R: JellyfishMerkleTree<K>>(
         &self,
         node_key: &NodeKey,
         n: Nibble,
@@ -667,7 +667,7 @@ impl InternalNode {
     }
 
     #[cfg(test)]
-    pub(crate) fn get_child_with_siblings_for_test<K: crate::Key, R: TreeReader<K>>(
+    pub(crate) fn get_child_with_siblings_for_test<K: crate::Key, R: JellyfishMerkleTree<K>>(
         &self,
         node_key: &NodeKey,
         n: Nibble,
@@ -816,7 +816,7 @@ where
         }
     }
 
-    /// Returns leaf count if known
+    /// Reeurns leaf count if known
     pub fn leaf_count(&self) -> usize {
         match self {
             Node::Leaf(_) => 1,
