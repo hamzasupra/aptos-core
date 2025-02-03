@@ -264,7 +264,7 @@ impl<'a, K> std::iter::Iterator for NibbleRangeIterator<'a, K> {
 }
 
 /// The Jellyfish Merkle tree data structure. See [`crate`] for description.
-pub trait JellyfishMerkleTree<K>: Send + Sync {
+pub trait JellyfishMerkleTree<K: Key>: Send + Sync {
     /// Gets node given a node key. Returns error if the node does not exist.
     fn get_node(&self, node_key: &NodeKey) -> Result<Node<K>> {
         self.get_node_with_tag(node_key, "unknown")
@@ -439,7 +439,7 @@ pub trait JellyfishMerkleTree<K>: Send + Sync {
         let mut shard_persisted_versions = arr![None; 16];
         if let Some(root_persisted_version) = root_persisted_version {
             let root_node_key = NodeKey::new_empty_path(root_persisted_version);
-            let root_node = self.reader.get_node_with_tag(&root_node_key, "commit")?;
+            let root_node = self.get_node_with_tag(&root_node_key, "commit")?;
             match root_node {
                 Node::Internal(root_node) => {
                     for shard_id in 0..16 {
@@ -467,7 +467,7 @@ pub trait JellyfishMerkleTree<K>: Send + Sync {
         hash_cache: &Option<&HashMap<NibblePath, HashValue>>,
         batch: &mut TreeUpdateBatch<K>,
     ) -> Result<Option<Node<K>>> {
-        let node_opt = self.reader.get_node_option(node_key, "commit")?;
+        let node_opt = self.get_node_option(node_key, "commit")?;
 
         if node_opt.is_some() {
             batch.put_stale_node(node_key.clone(), version);
@@ -553,7 +553,7 @@ pub trait JellyfishMerkleTree<K>: Send + Sync {
                                 // it's an old leaf
                                 let child_key =
                                     node_key.gen_child_node_key(old_child.version, **nibble);
-                                let node = self.reader.get_node_with_tag(&child_key, "commit")?;
+                                let node = self.get_node_with_tag(&child_key, "commit")?;
                                 batch.put_stale_node(child_key, version);
                                 return Ok(Some(node));
                             }
@@ -702,7 +702,6 @@ pub trait JellyfishMerkleTree<K>: Send + Sync {
         // in the tree structure.
         for nibble_depth in 0..=ROOT_NIBBLE_HEIGHT {
             let next_node = self
-                .reader
                 .get_node_with_tag(&next_node_key, "get_proof")
                 .map_err(|err| {
                     if nibble_depth == 0 {
@@ -728,7 +727,7 @@ pub trait JellyfishMerkleTree<K>: Send + Sync {
                     let child_node_key = internal_node.get_child_with_siblings(
                         &next_node_key,
                         queried_child_index,
-                        Some(self.reader),
+                        Some(self),
                         &mut out_siblings,
                         nibble_depth * 4,
                         target_root_depth,
@@ -808,7 +807,7 @@ pub trait JellyfishMerkleTree<K>: Send + Sync {
 
     fn get_root_node_option(&self, version: Version) -> Result<Option<Node<K>>> {
         let root_node_key = NodeKey::new_empty_path(version);
-        self.reader.get_node_option(&root_node_key, "get_root")
+        self.get_node_option(&root_node_key, "get_root")
     }
 
     fn get_root_hash(&self, version: Version) -> Result<HashValue> {
@@ -834,7 +833,7 @@ pub trait JellyfishMerkleTree<K>: Send + Sync {
         key: NodeKey,
         out_keys: &mut Vec<NodeKey>,
     ) -> Result<()> {
-        match self.reader.get_node(&key)? {
+        match self.get_node(&key)? {
             Node::Internal(internal_node) => {
                 for (child_nibble, child) in internal_node.children_sorted() {
                     self.get_all_nodes_referenced_impl(
