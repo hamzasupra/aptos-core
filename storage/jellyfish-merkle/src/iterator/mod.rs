@@ -12,7 +12,7 @@ mod iterator_test;
 
 use crate::{
     node_type::{Child, InternalNode, Node, NodeKey},
-    TreeReader,
+    JellyfishMerkleTree,
 };
 use aptos_crypto::HashValue;
 use aptos_storage_interface::{db_ensure as ensure, db_other_bail, AptosDbError, Result};
@@ -115,7 +115,7 @@ pub struct JellyfishMerkleIterator<R, K> {
 
 impl<R, K> JellyfishMerkleIterator<R, K>
 where
-    R: TreeReader<K>,
+    R: JellyfishMerkleTree<K>,
     K: crate::Key,
 {
     /// Constructs a new iterator. This puts the internal state in the correct position, so the
@@ -276,7 +276,7 @@ where
 
 impl<R, K> Iterator for JellyfishMerkleIterator<R, K>
 where
-    R: TreeReader<K>,
+    R: JellyfishMerkleTree<K>,
     K: crate::Key,
 {
     type Item = Result<(HashValue, (K, Version))>;
