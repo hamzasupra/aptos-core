@@ -64,6 +64,115 @@ pub struct StateMerkleDb {
     lru_cache: LruNodeCache,
 }
 
+impl JellyfishMerkleTree<StateKey> for StateMerkleDb {
+    fn get_node_option(
+        &self,
+        node_key: &NodeKey,
+        tag: &str,
+    ) -> Result<Option<aptos_jellyfish_merkle::node_type::Node<StateKey>>> {
+        let start_time = Instant::now();
+        if !self.cache_enabled() {
+            let node_opt = self
+                .db_by_key(node_key)
+                .get::<JellyfishMerkleNodeSchema>(node_key)?;
+            NODE_CACHE_SECONDS
+                .with_label_values(&[tag, "cache_disabled"])
+                .observe(start_time.elapsed().as_secs_f64());
+            return Ok(node_opt);
+        }
+        let node_opt = if let Some(node_cache) = self
+            .version_caches
+            .get(&node_key.get_shard_id())
+            .unwrap()
+            .get_version(node_key.version())
+        {
+            let node = node_cache.get(node_key).cloned();
+            NODE_CACHE_SECONDS
+                .with_label_values(&[tag, "versioned_cache_hit"])
+                .observe(start_time.elapsed().as_secs_f64());
+            node
+        } else if let Some(node) = self.lru_cache.get(node_key) {
+            NODE_CACHE_SECONDS
+                .with_label_values(&[tag, "lru_cache_hit"])
+                .observe(start_time.elapsed().as_secs_f64());
+            Some(node)
+        } else {
+            let node_opt = self
+                .db_by_key(node_key)
+                .get::<JellyfishMerkleNodeSchema>(node_key)?;
+            if let Some(node) = &node_opt {
+                self.lru_cache.put(node_key.clone(), node.clone());
+            }
+            NODE_CACHE_SECONDS
+                .with_label_values(&[tag, "cache_miss"])
+                .observe(start_time.elapsed().as_secs_f64());
+            node_opt
+        };
+        Ok(node_opt)
+    }
+
+    fn get_rightmost_leaf(
+        &self,
+        version: Version,
+    ) -> Result<
+        Option<(
+            NodeKey,
+            aptos_jellyfish_merkle::node_type::LeafNode<StateKey>,
+        )>,
+    > {
+        // Since everything has the same version during restore, we seek to the first node and get
+        // its version.
+
+        let mut iter = self.metadata_db().iter::<JellyfishMerkleNodeSchema>()?;
+        // get the root node corresponding to the version
+        iter.seek(&(version, 0))?;
+        match iter.next().transpose()? {
+            Some((node_key, node)) => {
+                if node.node_type() == NodeType::Null || node_key.version() != version {
+                    return Ok(None);
+                }
+            },
+            None => return Ok(None),
+        };
+
+        let ret = None;
+        let shards = 0..self.hack_num_real_shards();
+
+        // Search from right to left to find the first leaf node.
+        for shard_id in shards.rev() {
+            if let Some((node_key, leaf_node)) =
+                self.get_rightmost_leaf_in_single_shard(version, shard_id as u8)?
+            {
+                return Ok(Some((node_key, leaf_node)));
+            }
+        }
+
+        Ok(ret)
+    }
+
+    fn write_node_batch(
+        &self,
+        node_batch: &HashMap<NodeKey, aptos_jellyfish_merkle::node_type::Node<StateKey>>,
+    ) -> Result<()> {
+        let _timer = OTHER_TIMERS_SECONDS
+            .with_label_values(&["tree_writer_write_batch"])
+            .start_timer();
+        // Get the top level batch and sharded batch from raw NodeBatch
+        let top_level_batch = SchemaBatch::new();
+        let mut jmt_shard_batches: Vec<SchemaBatch> = Vec::with_capacity(NUM_STATE_SHARDS);
+        jmt_shard_batches.resize_with(NUM_STATE_SHARDS, SchemaBatch::new);
+        node_batch.iter().try_for_each(|(node_key, node)| {
+            if let Some(shard_id) = node_key.get_shard_id() {
+                jmt_shard_batches[shard_id as usize]
+                    .put::<JellyfishMerkleNodeSchema>(node_key, node)
+            } else {
+                top_level_batch.put::<JellyfishMerkleNodeSchema>(node_key, node)
+            }
+        })?;
+        self.commit_no_progress(top_level_batch, jmt_shard_batches)
+    }
+}
+
 impl StateMerkleDb {
     pub(crate) fn new(
         db_paths: &StorageDirPaths,
@@ -243,61 +352,6 @@ impl StateMerkleDb {
             &DbMetadataValue::Version(version),
         )?;
         self.state_merkle_db_shards[shard_id as usize].write_schemas(batch)
-    }
-
-    pub fn get_with_proof_ext(
-        &self,
-        state_key: &StateKey,
-        version: Version,
-        root_depth: usize,
-    ) -> Result<(
-        Option<(HashValue, (StateKey, Version))>,
-        SparseMerkleProofExt,
-    )> {
-        JellyfishMerkleTree::new(self)
-            .get_with_proof_ext(state_key.hash(), version, root_depth)
-            .map_err(Into::into)
-    }
-
-    pub fn get_range_proof(
-        &self,
-        rightmost_key: HashValue,
-        version: Version,
-    ) -> Result<SparseMerkleRangeProof> {
-        JellyfishMerkleTree::new(self)
-            .get_range_proof(rightmost_key, version)
-            .map_err(Into::into)
-    }
-
-    pub fn get_root_hash(&self, version: Version) -> Result<HashValue> {
-        JellyfishMerkleTree::new(self)
-            .get_root_hash(version)
-            .map_err(Into::into)
-    }
-
-    pub fn get_leaf_count(&self, version: Version) -> Result<usize> {
-        JellyfishMerkleTree::new(self)
-            .get_leaf_count(version)
-            .map_err(Into::into)
-    }
-
-    pub fn batch_put_value_set_for_shard(
-        &self,
-        shard_id: u8,
-        value_set: Vec<(HashValue, Option<&(HashValue, StateKey)>)>,
-        node_hashes: Option<&HashMap<NibblePath, HashValue>>,
-        persisted_version: Option<Version>,
-        version: Version,
-    ) -> Result<(Node, TreeUpdateBatch<StateKey>)> {
-        JellyfishMerkleTree::new(self)
-            .batch_put_value_set_for_shard(
-                shard_id,
-                value_set,
-                node_hashes,
-                persisted_version,
-                version,
-            )
-            .map_err(Into::into)
     }
 
     pub fn get_state_snapshot_version_before(
@@ -486,11 +540,8 @@ impl StateMerkleDb {
         previous_epoch_ending_version: Option<Version>,
     ) -> Result<(HashValue, SchemaBatch)> {
         assert!(shard_root_nodes.len() == 16);
-        let (root_hash, tree_update_batch) = JellyfishMerkleTree::new(self).put_top_levels_nodes(
-            shard_root_nodes,
-            base_version,
-            version,
-        )?;
+        let (root_hash, tree_update_batch) =
+            self.put_top_levels_nodes(shard_root_nodes, base_version, version)?;
 
         if self.cache_enabled() {
             self.version_caches.get(&None).unwrap().add_version(
@@ -511,15 +562,6 @@ impl StateMerkleDb {
         )?;
 
         Ok((root_hash, batch))
-    }
-
-    pub(crate) fn get_shard_persisted_versions(
-        &self,
-        root_persisted_version: Option<Version>,
-    ) -> Result<[Option<Version>; NUM_STATE_SHARDS]> {
-        JellyfishMerkleTree::new(self)
-            .get_shard_persisted_versions(root_persisted_version)
-            .map_err(Into::into)
     }
 
     pub(crate) fn sharding_enabled(&self) -> bool {
@@ -782,101 +824,5 @@ impl StateMerkleDb {
             }
         }
         Ok(ret)
-    }
-}
-
-impl TreeReader<StateKey> for StateMerkleDb {
-    fn get_node_option(&self, node_key: &NodeKey, tag: &str) -> Result<Option<Node>> {
-        let start_time = Instant::now();
-        if !self.cache_enabled() {
-            let node_opt = self
-                .db_by_key(node_key)
-                .get::<JellyfishMerkleNodeSchema>(node_key)?;
-            NODE_CACHE_SECONDS
-                .with_label_values(&[tag, "cache_disabled"])
-                .observe(start_time.elapsed().as_secs_f64());
-            return Ok(node_opt);
-        }
-        let node_opt = if let Some(node_cache) = self
-            .version_caches
-            .get(&node_key.get_shard_id())
-            .unwrap()
-            .get_version(node_key.version())
-        {
-            let node = node_cache.get(node_key).cloned();
-            NODE_CACHE_SECONDS
-                .with_label_values(&[tag, "versioned_cache_hit"])
-                .observe(start_time.elapsed().as_secs_f64());
-            node
-        } else if let Some(node) = self.lru_cache.get(node_key) {
-            NODE_CACHE_SECONDS
-                .with_label_values(&[tag, "lru_cache_hit"])
-                .observe(start_time.elapsed().as_secs_f64());
-            Some(node)
-        } else {
-            let node_opt = self
-                .db_by_key(node_key)
-                .get::<JellyfishMerkleNodeSchema>(node_key)?;
-            if let Some(node) = &node_opt {
-                self.lru_cache.put(node_key.clone(), node.clone());
-            }
-            NODE_CACHE_SECONDS
-                .with_label_values(&[tag, "cache_miss"])
-                .observe(start_time.elapsed().as_secs_f64());
-            node_opt
-        };
-        Ok(node_opt)
-    }
-
-    fn get_rightmost_leaf(&self, version: Version) -> Result<Option<(NodeKey, LeafNode)>> {
-        // Since everything has the same version during restore, we seek to the first node and get
-        // its version.
-
-        let mut iter = self.metadata_db().iter::<JellyfishMerkleNodeSchema>()?;
-        // get the root node corresponding to the version
-        iter.seek(&(version, 0))?;
-        match iter.next().transpose()? {
-            Some((node_key, node)) => {
-                if node.node_type() == NodeType::Null || node_key.version() != version {
-                    return Ok(None);
-                }
-            },
-            None => return Ok(None),
-        };
-
-        let ret = None;
-        let shards = 0..self.hack_num_real_shards();
-
-        // Search from right to left to find the first leaf node.
-        for shard_id in shards.rev() {
-            if let Some((node_key, leaf_node)) =
-                self.get_rightmost_leaf_in_single_shard(version, shard_id as u8)?
-            {
-                return Ok(Some((node_key, leaf_node)));
-            }
-        }
-
-        Ok(ret)
-    }
-}
-
-impl TreeWriter<StateKey> for StateMerkleDb {
-    fn write_node_batch(&self, node_batch: &NodeBatch) -> Result<()> {
-        let _timer = OTHER_TIMERS_SECONDS
-            .with_label_values(&["tree_writer_write_batch"])
-            .start_timer();
-        // Get the top level batch and sharded batch from raw NodeBatch
-        let top_level_batch = SchemaBatch::new();
-        let mut jmt_shard_batches: Vec<SchemaBatch> = Vec::with_capacity(NUM_STATE_SHARDS);
-        jmt_shard_batches.resize_with(NUM_STATE_SHARDS, SchemaBatch::new);
-        node_batch.iter().try_for_each(|(node_key, node)| {
-            if let Some(shard_id) = node_key.get_shard_id() {
-                jmt_shard_batches[shard_id as usize]
-                    .put::<JellyfishMerkleNodeSchema>(node_key, node)
-            } else {
-                top_level_batch.put::<JellyfishMerkleNodeSchema>(node_key, node)
-            }
-        })?;
-        self.commit_no_progress(top_level_batch, jmt_shard_batches)
     }
 }
