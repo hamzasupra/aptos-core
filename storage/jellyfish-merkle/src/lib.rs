@@ -264,7 +264,7 @@ impl<'a, K> std::iter::Iterator for NibbleRangeIterator<'a, K> {
 }
 
 /// The Jellyfish Merkle tree data structure. See [`crate`] for description.
-pub trait JellyfishMerkleTree<K: Key>: Send + Sync {
+pub trait JellyfishMerkleTree<K>: Send + Sync {
     /// Gets node given a node key. Returns error if the node does not exist.
     fn get_node(&self, node_key: &NodeKey) -> Result<Node<K>> {
         self.get_node_with_tag(node_key, "unknown")
