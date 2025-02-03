@@ -104,7 +104,6 @@ use serde::{de::DeserializeOwned, Serialize};
 use std::{
     collections::{BTreeMap, HashMap},
     hash::Hash,
-    marker::PhantomData,
 };
 
 const MAX_PARALLELIZABLE_DEPTH: usize = 2;
