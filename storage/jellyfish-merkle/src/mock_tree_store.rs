@@ -4,12 +4,13 @@
 
 use crate::{
     node_type::{LeafNode, Node, NodeKey},
-    NodeBatch, Result, StaleNodeIndex, TreeReader, TreeUpdateBatch, TreeWriter,
+    JellyfishMerkleTree, Result, StaleNodeIndex, TreeUpdateBatch,
 };
 use aptos_infallible::RwLock;
 use aptos_storage_interface::{db_ensure as ensure, db_other_bail, AptosDbError};
 use aptos_types::transaction::Version;
 use std::collections::{hash_map::Entry, BTreeSet, HashMap};
+
 pub struct MockTreeStore<K> {
     data: RwLock<(HashMap<NodeKey, Node<K>>, BTreeSet<StaleNodeIndex>)>,
     allow_overwrite: bool,
@@ -24,11 +25,11 @@ impl<K> Default for MockTreeStore<K> {
     }
 }
 
-impl<K> TreeReader<K> for MockTreeStore<K>
+impl<K> JellyfishMerkleTree<K> for MockTreeStore<K>
 where
-    K: crate::Key,
+    K: crate::Key + std::fmt::Debug + std::cmp::PartialEq,
 {
-    fn get_node_option(&self, node_key: &NodeKey, _tag: &str) -> Result<Option<Node<K>>> {
+    fn get_node_option(&self, node_key: &NodeKey, tag: &str) -> Result<Option<Node<K>>> {
         Ok(self.data.read().0.get(node_key).cloned())
     }
 
@@ -50,13 +51,8 @@ where
 
         Ok(node_key_and_node)
     }
-}
 
-impl<K> TreeWriter<K> for MockTreeStore<K>
-where
-    K: crate::Key + std::fmt::Debug + std::cmp::PartialEq,
-{
-    fn write_node_batch(&self, node_batch: &NodeBatch<K>) -> Result<()> {
+    fn write_node_batch(&self, node_batch: &HashMap<NodeKey, Node<K>>) -> Result<()> {
         let mut locked = self.data.write();
         for (node_key, node) in node_batch.clone() {
             let replaced = locked.0.insert(node_key, node);
