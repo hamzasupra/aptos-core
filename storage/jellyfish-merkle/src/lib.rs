@@ -111,34 +111,6 @@ const MAX_PARALLELIZABLE_DEPTH: usize = 2;
 // Assumes 16 shards here.
 const MIN_LEAF_DEPTH: usize = 1;
 
-/// `TreeReader` defines the interface between
-/// [`JellyfishMerkleTree`](struct.JellyfishMerkleTree.html)
-/// and underlying storage holding nodes.
-pub trait TreeReader<K> {
-    /// Gets node given a node key. Returns error if the node does not exist.
-    fn get_node(&self, node_key: &NodeKey) -> Result<Node<K>> {
-        self.get_node_with_tag(node_key, "unknown")
-    }
-
-    /// Gets node given a node key. Returns error if the node does not exist.
-    fn get_node_with_tag(&self, node_key: &NodeKey, tag: &str) -> Result<Node<K>> {
-        self.get_node_option(node_key, tag)?
-            .ok_or_else(|| AptosDbError::NotFound(format!("Missing node at {:?}.", node_key)))
-    }
-
-    /// Gets node given a node key. Returns `None` if the node does not exist.
-    fn get_node_option(&self, node_key: &NodeKey, tag: &str) -> Result<Option<Node<K>>>;
-
-    /// Gets the rightmost leaf at a version. Note that this assumes we are in the process of
-    /// restoring the tree and all nodes are at the same version.
-    fn get_rightmost_leaf(&self, version: Version) -> Result<Option<(NodeKey, LeafNode<K>)>>;
-}
-
-pub trait TreeWriter<K>: Send + Sync {
-    /// Writes a node batch into storage.
-    fn write_node_batch(&self, node_batch: &HashMap<NodeKey, Node<K>>) -> Result<()>;
-}
-
 pub trait Key: Clone + Serialize + DeserializeOwned + Send + Sync + 'static {
     fn key_size(&self) -> usize;
 }
@@ -292,23 +264,27 @@ impl<'a, K> std::iter::Iterator for NibbleRangeIterator<'a, K> {
 }
 
 /// The Jellyfish Merkle tree data structure. See [`crate`] for description.
-pub struct JellyfishMerkleTree<'a, R, K> {
-    reader: &'a R,
-    phantom_value: PhantomData<K>,
-}
-
-impl<'a, R, K> JellyfishMerkleTree<'a, R, K>
-where
-    R: 'a + TreeReader<K> + Sync,
-    K: Key,
-{
-    /// Creates a `JellyfishMerkleTree` backed by the given [`TreeReader`](trait.TreeReader.html).
-    pub fn new(reader: &'a R) -> Self {
-        Self {
-            reader,
-            phantom_value: PhantomData,
-        }
+pub trait JellyfishMerkleTree<K: Key>: Send + Sync {
+    /// Gets node given a node key. Returns error if the node does not exist.
+    fn get_node(&self, node_key: &NodeKey) -> Result<Node<K>> {
+        self.get_node_with_tag(node_key, "unknown")
     }
+
+    /// Gets node given a node key. Returns error if the node does not exist.
+    fn get_node_with_tag(&self, node_key: &NodeKey, tag: &str) -> Result<Node<K>> {
+        self.get_node_option(node_key, tag)?
+            .ok_or_else(|| AptosDbError::NotFound(format!("Missing node at {:?}.", node_key)))
+    }
+
+    /// Gets node given a node key. Returns `None` if the node does not exist.
+    fn get_node_option(&self, node_key: &NodeKey, tag: &str) -> Result<Option<Node<K>>>;
+
+    /// Gets the rightmost leaf at a version. Note that this assumes we are in the process of
+    /// restoring the tree and all nodes are at the same version.
+    fn get_rightmost_leaf(&self, version: Version) -> Result<Option<(NodeKey, LeafNode<K>)>>;
+
+    /// Writes a node batch into storage.
+    fn write_node_batch(&self, node_batch: &HashMap<NodeKey, Node<K>>) -> Result<()>;
 
     /// For each value set:
     /// Returns the new nodes and values in a batch after applying `value_set`. For
@@ -354,7 +330,7 @@ where
     /// the batch is not reachable from public interfaces before being committed.
     ///
     /// Assumes 16 shards in total here.
-    pub fn batch_put_value_set_for_shard(
+    fn batch_put_value_set_for_shard(
         &self,
         shard_id: u8,
         value_set: Vec<(HashValue, Option<&(HashValue, K)>)>,
@@ -412,7 +388,7 @@ where
     }
 
     /// Assumes 16 shards here, top levels only contain root node.
-    pub fn put_top_levels_nodes(
+    fn put_top_levels_nodes(
         &self,
         shard_root_nodes: Vec<Node<K>>,
         persisted_version: Option<Version>,
@@ -456,7 +432,7 @@ where
 
     /// Returns the node versions of the root of each shard, or None if the shard is empty.
     /// Assumes 16 shards here.
-    pub fn get_shard_persisted_versions(
+    fn get_shard_persisted_versions(
         &self,
         root_persisted_version: Option<Version>,
     ) -> Result<[Option<Version>; 16]> {
@@ -668,7 +644,7 @@ where
 
     /// This is a convenient function for test only, without providing the node hash
     /// cache and assuming the base version is the immediate previous version.
-    pub fn put_value_set_test(
+    fn put_value_set_test(
         &self,
         value_set: Vec<(HashValue, Option<&(HashValue, K)>)>,
         version: Version,
@@ -701,7 +677,7 @@ where
     }
 
     /// Returns the value (if applicable) and the corresponding merkle proof.
-    pub fn get_with_proof(
+    fn get_with_proof(
         &self,
         key: HashValue,
         version: Version,
@@ -710,7 +686,7 @@ where
             .map(|(value, proof_ext)| (value, proof_ext.into()))
     }
 
-    pub fn get_with_proof_ext(
+    fn get_with_proof_ext(
         &self,
         key: HashValue,
         version: Version,
@@ -794,7 +770,7 @@ where
     }
 
     /// Gets the proof that shows a list of keys up to `rightmost_key_to_prove` exist at `version`.
-    pub fn get_range_proof(
+    fn get_range_proof(
         &self,
         rightmost_key_to_prove: HashValue,
         version: Version,
@@ -820,7 +796,7 @@ where
     }
 
     #[cfg(test)]
-    pub fn get(&self, key: HashValue, version: Version) -> Result<Option<HashValue>> {
+    fn get(&self, key: HashValue, version: Version) -> Result<Option<HashValue>> {
         Ok(self.get_with_proof(key, version)?.0.map(|x| x.0))
     }
 
@@ -835,19 +811,19 @@ where
         self.reader.get_node_option(&root_node_key, "get_root")
     }
 
-    pub fn get_root_hash(&self, version: Version) -> Result<HashValue> {
+    fn get_root_hash(&self, version: Version) -> Result<HashValue> {
         self.get_root_node(version).map(|n| n.hash())
     }
 
-    pub fn get_root_hash_option(&self, version: Version) -> Result<Option<HashValue>> {
+    fn get_root_hash_option(&self, version: Version) -> Result<Option<HashValue>> {
         Ok(self.get_root_node_option(version)?.map(|n| n.hash()))
     }
 
-    pub fn get_leaf_count(&self, version: Version) -> Result<usize> {
+    fn get_leaf_count(&self, version: Version) -> Result<usize> {
         self.get_root_node(version).map(|n| n.leaf_count())
     }
 
-    pub fn get_all_nodes_referenced(&self, version: Version) -> Result<Vec<NodeKey>> {
+    fn get_all_nodes_referenced(&self, version: Version) -> Result<Vec<NodeKey>> {
         let mut out_keys = vec![];
         self.get_all_nodes_referenced_impl(NodeKey::new_empty_path(version), &mut out_keys)?;
         Ok(out_keys)
@@ -1050,13 +1026,11 @@ trait NibbleExt {
 impl NibbleExt for HashValue {
     /// Returns the `index`-th nibble.
     fn get_nibble(&self, index: usize) -> Nibble {
-        Nibble::from(
-            if index % 2 == 0 {
-                self[index / 2] >> 4
-            } else {
-                self[index / 2] & 0x0F
-            },
-        )
+        Nibble::from(if index % 2 == 0 {
+            self[index / 2] >> 4
+        } else {
+            self[index / 2] & 0x0F
+        })
     }
 
     /// Returns the length of common prefix of `self` and `other` in nibbles.
