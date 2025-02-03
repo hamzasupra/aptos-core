@@ -90,17 +90,16 @@ where
 {
     assert!(!kvs.is_empty());
 
-    let db = MockTreeStore::default();
-    let tree = JellyfishMerkleTree::new(&db);
+    let tree = MockTreeStore::default();
 
     for (i, (key, value)) in kvs.iter().enumerate() {
         let (_root_hash, write_batch) = tree
             .put_value_set_test(vec![(*key, Some(value))], i as Version)
             .unwrap();
-        db.write_tree_update_batch(write_batch).unwrap();
+        tree.write_tree_update_batch(write_batch).unwrap();
     }
 
-    (db, (kvs.len() - 1) as Version)
+    (tree, (kvs.len() - 1) as Version)
 }
 
 pub fn arb_existent_kvs_and_nonexistent_keys<V: TestKey>(
@@ -130,8 +129,7 @@ pub fn arb_existent_kvs_and_nonexistent_keys<V: TestKey>(
 pub fn test_get_with_proof<V: TestKey>(
     (existent_kvs, nonexistent_keys): (HashMap<HashValue, (HashValue, V)>, Vec<HashValue>),
 ) {
-    let (db, version) = init_mock_db(&existent_kvs);
-    let tree = JellyfishMerkleTree::new(&db);
+    let (tree, version) = init_mock_db(&existent_kvs);
 
     test_existent_keys_impl(&tree, version, &existent_kvs);
     test_nonexistent_keys_impl(&tree, version, &nonexistent_keys);
@@ -158,8 +156,7 @@ pub fn test_get_with_proof_with_distinct_last_nibble<V: TestKey>(
     kvs.insert(kv1.0, kv1.1);
     kvs.insert(kv2.0, kv2.1);
 
-    let (db, version) = init_mock_db(&kvs);
-    let tree = JellyfishMerkleTree::new(&db);
+    let (tree, version) = init_mock_db(&kvs);
 
     test_existent_keys_impl(&tree, version, &kvs);
 }
@@ -179,8 +176,7 @@ pub fn arb_tree_with_index<V: TestKey>(
 }
 
 pub fn test_get_range_proof<V: TestKey>((btree, n): (BTreeMap<HashValue, (HashValue, V)>, usize)) {
-    let (db, version) = init_mock_db(&btree.clone().into_iter().collect());
-    let tree = JellyfishMerkleTree::new(&db);
+    let (tree, version) = init_mock_db(&btree.clone().into_iter().collect());
 
     let nth_key = *btree.keys().nth(n).unwrap();
     let proof = tree.get_range_proof(nth_key, version).unwrap();
@@ -191,8 +187,8 @@ pub fn test_get_range_proof<V: TestKey>((btree, n): (BTreeMap<HashValue, (HashVa
     );
 }
 
-fn test_existent_keys_impl<V: TestKey>(
-    tree: &JellyfishMerkleTree<'_, MockTreeStore<V>, V>,
+fn test_existent_keys_impl<V: TestKey, J: JellyfishMerkleTree<MockTreeStore<V>>>(
+    tree: J,
     version: Version,
     existent_kvs: &HashMap<HashValue, (HashValue, V)>,
 ) {
@@ -207,8 +203,8 @@ fn test_existent_keys_impl<V: TestKey>(
     }
 }
 
-fn test_nonexistent_keys_impl<V: TestKey>(
-    tree: &JellyfishMerkleTree<'_, MockTreeStore<V>, V>,
+fn test_nonexistent_keys_impl<V: TestKey, J: JellyfishMerkleTree<MockTreeStore<V>>>(
+    tree: J,
     version: Version,
     nonexistent_keys: &[HashValue],
 ) {
@@ -388,17 +384,16 @@ pub fn test_get_leaf_count(keys: HashSet<HashValue>) {
     let idx1 = keys.len() / 3;
     let idx2 = keys.len() / 3 * 2;
     let kvs = keys[0..idx2].iter().map(|k| (*k, gen_value())).collect();
-    let (db, version) = init_mock_db(&kvs);
+    let (tree, version) = init_mock_db(&kvs);
     let updates = keys[idx1..idx2]
         .iter()
         .map(|k| (*k, None))
         .chain(keys[idx2..].iter().map(|k| (*k, Some(gen_value()))))
         .collect::<Vec<_>>();
-    let tree = JellyfishMerkleTree::new(&db);
     let (_, batch) = tree
         .put_value_set_test(jmt_update_refs(updates.as_slice()), version + 1)
         .unwrap();
-    db.write_tree_update_batch(batch).unwrap();
+    tree.write_tree_update_batch(batch).unwrap();
     assert_eq!(
         tree.get_leaf_count(version + 1).unwrap(),
         keys.len() - (idx2 - idx1)

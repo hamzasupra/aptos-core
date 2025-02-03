@@ -10,7 +10,7 @@ use crate::{
         get_child_and_sibling_half_start, Child, Children, InternalNode, LeafNode, Node, NodeKey,
         NodeType,
     },
-    NibbleExt, TreeReader, TreeWriter, ROOT_NIBBLE_HEIGHT,
+    JellyfishMerkleTree, NibbleExt, ROOT_NIBBLE_HEIGHT,
 };
 use aptos_crypto::{
     hash::{CryptoHash, SPARSE_MERKLE_PLACEHOLDER_HASH},
@@ -126,7 +126,7 @@ where
 
 pub struct JellyfishMerkleRestore<K> {
     /// The underlying storage.
-    store: Arc<dyn TreeWriter<K>>,
+    store: Arc<dyn JellyfishMerkleTree<K>>,
 
     /// The version of the tree we are restoring.
     version: Version,
@@ -187,7 +187,7 @@ impl<K> JellyfishMerkleRestore<K>
 where
     K: crate::Key + CryptoHash + 'static,
 {
-    pub fn new<D: 'static + TreeReader<K> + TreeWriter<K>>(
+    pub fn new<D: 'static + JellyfishMerkleTree<K>>(
         store: Arc<D>,
         version: Version,
         expected_root_hash: HashValue,
@@ -235,7 +235,7 @@ where
         })
     }
 
-    pub fn new_overwrite<D: 'static + TreeWriter<K>>(
+    pub fn new_overwrite<D: 'static + JellyfishMerkleTree<K>>(
         store: Arc<D>,
         version: Version,
         expected_root_hash: HashValue,
@@ -266,7 +266,7 @@ where
     /// Recovers partial nodes from storage. We do this by looking at all the ancestors of the
     /// rightmost leaf. The ones do not exist in storage are the partial nodes.
     fn recover_partial_nodes(
-        store: &dyn TreeReader<K>,
+        store: &dyn JellyfishMerkleTree<K>,
         version: Version,
         rightmost_leaf_node_key: NodeKey,
     ) -> Result<Vec<InternalInfo<K>>> {
@@ -316,10 +316,13 @@ where
             // partial node and we do not know its hash yet. For the lowest partial node, we just
             // find all its known children from storage in the loop above.
             if let Some(index) = previous_child_index {
-                internal_info.set_child(index, ChildInfo::Internal {
-                    hash: None,
-                    leaf_count: None,
-                });
+                internal_info.set_child(
+                    index,
+                    ChildInfo::Internal {
+                        hash: None,
+                        leaf_count: None,
+                    },
+                );
             }
 
             partial_nodes.push(internal_info);
@@ -504,10 +507,13 @@ where
             let new_node_key = NodeKey::new(self.version, visited_nibbles);
 
             let mut internal_info = InternalInfo::new_empty(new_node_key);
-            internal_info.set_child(u8::from(next_nibble) as usize, ChildInfo::Internal {
-                hash: None,
-                leaf_count: None,
-            });
+            internal_info.set_child(
+                u8::from(next_nibble) as usize,
+                ChildInfo::Internal {
+                    hash: None,
+                    leaf_count: None,
+                },
+            );
             self.partial_nodes.push(internal_info);
         }
 
