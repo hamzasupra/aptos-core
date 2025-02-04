@@ -19,8 +19,9 @@ use aptos_config::config::{RocksdbConfig, RocksdbConfigs, StorageDirPaths};
 use aptos_crypto::{hash::CryptoHash, HashValue};
 use aptos_experimental_runtimes::thread_manager::{optimal_min_len, THREAD_MANAGER};
 use aptos_jellyfish_merkle::{
+    get_with_proof_ext,
     node_type::{NodeKey, NodeType},
-    JellyfishMerkleTree, TreeReader, TreeUpdateBatch, TreeWriter,
+    JellyfishMerkleTree, TreeUpdateBatch,
 };
 use aptos_logger::prelude::*;
 use aptos_rocksdb_options::gen_rocksdb_options;

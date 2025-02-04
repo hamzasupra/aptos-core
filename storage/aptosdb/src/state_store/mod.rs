@@ -41,7 +41,7 @@ use aptos_crypto::{
 use aptos_executor::components::in_memory_state_calculator_v2::InMemoryStateCalculatorV2;
 use aptos_experimental_runtimes::thread_manager::THREAD_MANAGER;
 use aptos_infallible::Mutex;
-use aptos_jellyfish_merkle::iterator::JellyfishMerkleIterator;
+use aptos_jellyfish_merkle::{iterator::JellyfishMerkleIterator, JellyfishMerkleTree};
 use aptos_logger::info;
 use aptos_schemadb::SchemaBatch;
 use aptos_scratchpad::{SmtAncestors, SparseMerkleTree};
@@ -162,9 +162,9 @@ impl DbReader for StateDb {
         version: Version,
         root_depth: usize,
     ) -> Result<SparseMerkleProofExt> {
-        let (_, proof) = self
-            .state_merkle_db
-            .get_with_proof_ext(state_key, version, root_depth)?;
+        let (_, proof) =
+            self.state_merkle_db
+                .get_with_proof_ext(state_key.hash_value, version, root_depth)?;
         Ok(proof)
     }
 
@@ -175,9 +175,9 @@ impl DbReader for StateDb {
         version: Version,
         root_depth: usize,
     ) -> Result<(Option<StateValue>, SparseMerkleProofExt)> {
-        let (leaf_data, proof) = self
-            .state_merkle_db
-            .get_with_proof_ext(state_key, version, root_depth)?;
+        let (leaf_data, proof) =
+            self.state_merkle_db
+                .get_with_proof_ext(state_key.hash_value, version, root_depth)?;
         Ok((
             match leaf_data {
                 Some((_, (key, version))) => Some(self.expect_value_by_version(&key, version)?),

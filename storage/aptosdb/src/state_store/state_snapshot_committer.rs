@@ -28,6 +28,8 @@ use std::{
     thread::JoinHandle,
 };
 
+use aptos_jellyfish_merkle::JellyfishMerkleTree;
+
 pub(crate) struct StateSnapshotCommitter {
     state_db: Arc<StateDb>,
     state_snapshot_commit_receiver: Receiver<CommitMessage<Arc<StateDelta>>>,

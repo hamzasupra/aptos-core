@@ -7,6 +7,7 @@ use crate::{
 };
 use aptos_crypto::hash::CryptoHash;
 use aptos_jellyfish_merkle::iterator::JellyfishMerkleIterator;
+use aptos_jellyfish_merkle::JellyfishMerkleTree;
 use aptos_schemadb::ReadOptions;
 use aptos_storage_interface::Result;
 use aptos_types::transaction::Version;

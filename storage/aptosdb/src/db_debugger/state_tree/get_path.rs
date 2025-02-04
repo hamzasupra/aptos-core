@@ -7,10 +7,8 @@ use crate::{
     state_merkle_db::StateMerkleDb,
 };
 use aptos_crypto::{hash::CryptoHash, HashValue};
-use aptos_jellyfish_merkle::{
-    node_type::{Child, Node, NodeKey, NodeType},
-    TreeReader,
-};
+use aptos_jellyfish_merkle::node_type::{Child, Node, NodeKey, NodeType};
+use aptos_jellyfish_merkle::JellyfishMerkleTree;
 use aptos_storage_interface::{db_ensure as ensure, AptosDbError, Result};
 use aptos_types::{
     nibble::{nibble_path::NibblePath, Nibble},

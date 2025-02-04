@@ -5,7 +5,9 @@ use crate::metrics::OTHER_TIMERS_SECONDS;
 use anyhow::anyhow;
 use aptos_crypto::{hash::CryptoHash, HashValue};
 use aptos_infallible::Mutex;
-use aptos_jellyfish_merkle::{restore::JellyfishMerkleRestore, Key, TreeReader, TreeWriter, Value};
+use aptos_jellyfish_merkle::{
+    get_with_proof_ext, restore::JellyfishMerkleRestore, JellyfishMerkleTree, Key, Value,
+};
 use aptos_storage_interface::{Result, StateSnapshotReceiver};
 use aptos_types::{
     proof::SparseMerkleRangeProof, state_store::state_storage_usage::StateStorageUsage,
@@ -160,7 +162,7 @@ pub struct StateSnapshotRestore<K, V> {
 }
 
 impl<K: Key + CryptoHash + Hash + Eq, V: Value> StateSnapshotRestore<K, V> {
-    pub fn new<T: 'static + TreeReader<K> + TreeWriter<K>, S: 'static + StateValueWriter<K, V>>(
+    pub fn new<T: 'static + JellyfishMerkleTree<K>, S: 'static + StateValueWriter<K, V>>(
         tree_store: &Arc<T>,
         value_store: &Arc<S>,
         version: Version,
@@ -183,7 +185,10 @@ impl<K: Key + CryptoHash + Hash + Eq, V: Value> StateSnapshotRestore<K, V> {
         })
     }
 
-    pub fn new_overwrite<T: 'static + TreeWriter<K>, S: 'static + StateValueWriter<K, V>>(
+    pub fn new_overwrite<
+        T: 'static + JellyfishMerkleTree<K>,
+        S: 'static + StateValueWriter<K, V>,
+    >(
         tree_store: &Arc<T>,
         value_store: &Arc<S>,
         version: Version,
