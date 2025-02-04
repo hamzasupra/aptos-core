@@ -17,6 +17,7 @@ pub use crate::db::AptosDB;
 pub mod backup;
 pub mod common;
 pub mod db;
+pub mod db_trait;
 pub mod get_restore_handler;
 pub mod metrics;
 pub(crate) mod rocksdb_property_reporter;
