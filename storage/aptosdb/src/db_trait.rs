@@ -1,11 +1,17 @@
-pub trait LDB<D>: Send + Sync {
+use aptos_schemadb::{iterator::ScanDirection, ColumnFamilyName, ReadOptions, SchemaBatch};
+use std::path::Path;
+
+pub trait LDB: Send + Sync {
+    type Success;
+    type Error: Error + Debug;
+
     /// Opens database with defaults
     fn open(
         path: impl AsRef<Path>,
         name: &str,
         column_families: Vec<ColumnFamilyName>,
         db_opts: &Options,
-    ) -> DbResult<D>;
+    ) -> Result<Self, Self::Error>;
 
     /// opens database in cf mode
     fn open_cf(
@@ -13,66 +19,72 @@ pub trait LDB<D>: Send + Sync {
         path: impl AsRef<Path>,
         name: &str,
         cfds: Vec<ColumnFamilyDescriptor>,
-    ) -> DbResult<D>;
+    ) -> Result<Self, Self::Error>;
 
     /// Open db in readonly mode
     /// Note that this still assumes there's only one process that opens the same DB.
     /// See `open_as_secondary`
-    pub fn open_cf_readonly(
+    fn open_cf_readonly(
         opts: &Options,
         path: impl AsRef<Path>,
         name: &str,
         cfs: Vec<ColumnFamilyName>,
-    ) -> DbResult<D>;
+    ) -> Result<Self, Self::Error>;
 
-    pub fn open_cf_as_secondary<P: AsRef<Path>>(
+    fn open_cf_as_secondary<P: AsRef<Path>>(
         opts: &Options,
         primary_path: P,
         secondary_path: P,
         name: &str,
         cfs: Vec<ColumnFamilyName>,
-    ) -> DbResult<D>;
+    ) -> Result<Self, Self::Error>;
 
-    fn log_construct(name: &str, inner: rocksdb::DB) -> DB;
+    fn log_construct(name: &str) -> Self;
 
     /// Reads single record by key.
-    pub fn get<S: Schema>(&self, schema_key: &S::Key) -> DbResult<Option<S::Value>>;
+    fn get<S: Schema>(&self, schema_key: &S::Key) -> Result<Option<S::Value>, Self::Error>;
 
     /// Writes single record.
-    pub fn put<S: Schema>(&self, key: &S::Key, value: &S::Value) -> DbResult<()>;
+    fn put<S: Schema>(&self, key: &S::Key, value: &S::Value) -> Result<(), Self::Error>;
 
     /// Deletes a single record.
-    pub fn delete<S: Schema>(&self, key: &S::Key) -> DbResult<()>;
+    fn delete<S: Schema>(&self, key: &S::Key) -> Result<(), Self::Error>;
 
     fn iter_with_direction<S: Schema>(
         &self,
         opts: ReadOptions,
         direction: ScanDirection,
-    ) -> DbResult<SchemaIterator<S>>;
+    ) -> Result<SchemaIterator<S>, Self::Error>;
 
     /// Returns a forward [`SchemaIterator`] on a certain schema.
-    pub fn iter<S: Schema>(&self) -> DbResult<SchemaIterator<S>>;
+    fn iter<S: Schema>(&self) -> Result<SchemaIterator<S>, Self::Error>;
 
     /// Returns a forward [`SchemaIterator`] on a certain schema, with non-default ReadOptions
-    pub fn iter_with_opts<S: Schema>(&self, opts: ReadOptions) -> DbResult<SchemaIterator<S>>;
+    fn iter_with_opts<S: Schema>(
+        &self,
+        opts: ReadOptions,
+    ) -> Result<SchemaIterator<S>, Self::Error>;
 
     /// Returns a backward [`SchemaIterator`] on a certain schema.
-    pub fn rev_iter<S: Schema>(&self) -> DbResult<SchemaIterator<S>>;
+    fn rev_iter<S: Schema>(&self) -> Result<SchemaIterator<S>, Self::Error>;
 
     /// Returns a backward [`SchemaIterator`] on a certain schema, with non-default ReadOptions
-    pub fn rev_iter_with_opts<S: Schema>(&self, opts: ReadOptions) -> DbResult<SchemaIterator<S>>;
+    fn rev_iter_with_opts<S: Schema>(
+        &self,
+        opts: ReadOptions,
+    ) -> Result<SchemaIterator<S>, Self::Error>;
 
     /// Writes a group of records wrapped in a [`SchemaBatch`].
-    pub fn write_schemas(&self, batch: SchemaBatch) -> DbResult<()>;
+    fn write_schemas(&self, batch: SchemaBatch) -> Result<(), Self::Error>;
 
-    fn get_cf_handle(&self, cf_name: &str) -> DbResult<&rocksdb::ColumnFamily>;
+    fn get_cf_handle(&self, cf_name: &str) -> Result<Self, Self::Error>;
 
     /// Flushes memtable data. This is only used for testing `get_approximate_sizes_cf` in unit
     /// tests.
-    pub fn flush_cf(&self, cf_name: &str) -> DbResult<()>;
+    fn flush_cf(&self, cf_name: &str) -> Result<(), Self::Error>;
 
-    pub fn get_property(&self, cf_name: &str, property_name: &str) -> DbResult<u64>;
+    fn get_property(&self, cf_name: &str, property_name: &str) -> Result<u64, Self::Error>;
 
     /// Creates new physical DB checkpoint in directory specified by `path`.
-    pub fn create_checkpoint<P: AsRef<Path>>(&self, path: P) -> DbResult<()>;
+    fn create_checkpoint<P: AsRef<Path>>(&self, path: P) -> Result<(), Self::Error>;
 }
