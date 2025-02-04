@@ -26,7 +26,7 @@ use aptos_db::{
     },
 };
 use aptos_infallible::duration_since_epoch;
-use aptos_jellyfish_merkle::{NodeBatch, TreeWriter};
+use aptos_jellyfish_merkle::{JellyfishMerkleTree, NodeBatch};
 use aptos_logger::info;
 use aptos_storage_interface::{AptosDbError, Result};
 use aptos_types::{
@@ -166,9 +166,41 @@ pub enum RestoreRunMode {
 
 struct MockStore;
 
-impl TreeWriter<StateKey> for MockStore {
+impl JellyfishMerkleTree<StateKey> for MockStore {
     fn write_node_batch(&self, _node_batch: &NodeBatch<StateKey>) -> Result<()> {
         Ok(())
+    }
+
+    fn get_node_option(
+        &self,
+        node_key: &aptos_jellyfish_merkle::node_type::NodeKey,
+        tag: &str,
+    ) -> Result<Option<aptos_jellyfish_merkle::node_type::Node<StateKey>>> {
+        todo!()
+    }
+
+    fn get_rightmost_leaf(
+        &self,
+        version: Version,
+    ) -> Result<
+        Option<(
+            aptos_jellyfish_merkle::node_type::NodeKey,
+            aptos_jellyfish_merkle::node_type::LeafNode<StateKey>,
+        )>,
+    > {
+        todo!()
+    }
+
+    fn get_with_proof_ext(
+        &self,
+        key: HashValue,
+        version: Version,
+        target_root_depth: usize,
+    ) -> Result<(
+        Option<(HashValue, (StateKey, Version))>,
+        aptos_types::proof::SparseMerkleProofExt,
+    )> {
+        todo!()
     }
 }
 

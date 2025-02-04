@@ -8,10 +8,11 @@ use crate::state_restore::{
 use aptos_crypto::{hash::CryptoHash, HashValue};
 use aptos_infallible::RwLock;
 use aptos_jellyfish_merkle::{
+    get_with_proof_ext,
     mock_tree_store::MockTreeStore,
     node_type::{LeafNode, Node, NodeKey},
     test_helper::{init_mock_db, ValueBlob},
-    JellyfishMerkleTree, NodeBatch, TestKey, TestValue, TreeReader, TreeWriter,
+    JellyfishMerkleTree, NodeBatch, TestKey, TestValue,
 };
 use aptos_storage_interface::{Result, StateSnapshotReceiver};
 use aptos_types::{state_store::state_storage_usage::StateStorageUsage, transaction::Version};
@@ -98,11 +99,7 @@ where
     }
 }
 
-impl<K, V> TreeReader<K> for MockSnapshotStore<K, V>
-where
-    K: TestKey,
-    V: TestValue,
-{
+impl<K> JellyfishMerkleTree<K> for MockSnapshotStore<K> {
     fn get_node_option(&self, node_key: &NodeKey, tag: &str) -> Result<Option<Node<K>>> {
         self.tree_store.get_node_option(node_key, tag)
     }
@@ -110,15 +107,21 @@ where
     fn get_rightmost_leaf(&self, version: Version) -> Result<Option<(NodeKey, LeafNode<K>)>> {
         self.tree_store.get_rightmost_leaf(version)
     }
-}
 
-impl<K, V> TreeWriter<K> for MockSnapshotStore<K, V>
-where
-    K: TestKey,
-    V: TestValue,
-{
-    fn write_node_batch(&self, node_batch: &NodeBatch<K>) -> Result<()> {
+    fn write_node_batch(&self, node_batch: &HashMap<NodeKey, Node<K>>) -> Result<()> {
         self.tree_store.write_node_batch(node_batch)
+    }
+
+    fn get_with_proof_ext(
+        &self,
+        key: HashValue,
+        version: Version,
+        target_root_depth: usize,
+    ) -> Result<(
+        Option<(HashValue, (K, Version))>,
+        aptos_types::proof::SparseMerkleProofExt,
+    )> {
+        get_with_proof_ext(key, version, target_root_depth)
     }
 }
 
@@ -179,8 +182,7 @@ proptest! {
                 (Just(btree), Just(batch1_size), (1..=batch1_size))
             })
     ) {
-        let (db, version) = init_mock_store(&all.clone().into_values().collect());
-        let tree = JellyfishMerkleTree::new(&db);
+        let (tree, version) = init_mock_store(&all.clone().into_values().collect());
         let expected_root_hash = tree.get_root_hash(version).unwrap();
         let batch1: Vec<_> = all.clone().into_iter().take(batch1_size).collect();
 
@@ -264,13 +266,12 @@ fn restore_without_interruption<V>(
 ) where
     V: TestKey + TestValue,
 {
-    let (db, source_version) = init_mock_store(
+    let (tree, source_version) = init_mock_store(
         &btree
             .iter()
             .map(|(_, (k, v))| (k.clone(), v.clone()))
             .collect(),
     );
-    let tree = JellyfishMerkleTree::new(&db);
     let expected_root_hash = tree.get_root_hash(source_version).unwrap();
 
     let mut restore = if try_resume {
