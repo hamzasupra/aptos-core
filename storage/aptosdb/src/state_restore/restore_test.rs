@@ -231,29 +231,28 @@ proptest! {
 }
 
 fn assert_success<V>(
-    db: &MockSnapshotStore<V, V>,
+    tree: &MockSnapshotStore<V, V>,
     expected_root_hash: HashValue,
     btree: &BTreeMap<HashValue, (V, V)>,
     version: Version,
 ) where
     V: TestKey + TestValue,
 {
-    let tree = JellyfishMerkleTree::new(db);
     for (key, value) in btree.values() {
         let (value_hash, value_index) = tree
             .get_with_proof(CryptoHash::hash(key), version)
             .unwrap()
             .0
             .unwrap();
-        let value_in_db = db.get_value_at_version(&value_index).unwrap();
+        let value_in_db = tree.get_value_at_version(&value_index).unwrap();
         assert_eq!(CryptoHash::hash(value), value_hash);
         assert_eq!(&value_in_db, value);
     }
 
     let actual_root_hash = tree.get_root_hash(version).unwrap();
     assert_eq!(actual_root_hash, expected_root_hash);
-    let usage_calculated = db.calculate_usage(version);
-    let usage_stored = db.get_stored_usage(version);
+    let usage_calculated = tree.calculate_usage(version);
+    let usage_stored = tree.get_stored_usage(version);
     assert_eq!(usage_calculated, usage_stored);
     assert_eq!(usage_stored.items(), tree.get_leaf_count(version).unwrap());
 }
