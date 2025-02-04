@@ -164,7 +164,7 @@ impl DbReader for StateDb {
     ) -> Result<SparseMerkleProofExt> {
         let (_, proof) =
             self.state_merkle_db
-                .get_with_proof_ext(state_key.hash_value, version, root_depth)?;
+                .get_with_proof_ext(state_key.hash(), version, root_depth)?;
         Ok(proof)
     }
 
@@ -177,7 +177,7 @@ impl DbReader for StateDb {
     ) -> Result<(Option<StateValue>, SparseMerkleProofExt)> {
         let (leaf_data, proof) =
             self.state_merkle_db
-                .get_with_proof_ext(state_key.hash_value, version, root_depth)?;
+                .get_with_proof_ext(state_key.hash(), version, root_depth)?;
         Ok((
             match leaf_data {
                 Some((_, (key, version))) => Some(self.expect_value_by_version(&key, version)?),
