@@ -187,11 +187,14 @@ pub fn test_get_range_proof<V: TestKey>((btree, n): (BTreeMap<HashValue, (HashVa
     );
 }
 
-fn test_existent_keys_impl<V: TestKey, J: JellyfishMerkleTree<V>>(
-    tree: J,
+fn test_existent_keys_impl<V, J>(
+    tree: &J,
     version: Version,
     existent_kvs: &HashMap<HashValue, (HashValue, V)>,
-) {
+) where
+    V: TestKey,
+    J: JellyfishMerkleTree<V> + ?Sized,
+{
     let root_hash = tree.get_root_hash(version).unwrap();
 
     for (key, value) in existent_kvs {
@@ -203,11 +206,11 @@ fn test_existent_keys_impl<V: TestKey, J: JellyfishMerkleTree<V>>(
     }
 }
 
-fn test_nonexistent_keys_impl<V: TestKey, J: JellyfishMerkleTree<V>>(
-    tree: J,
-    version: Version,
-    nonexistent_keys: &[HashValue],
-) {
+fn test_nonexistent_keys_impl<V, J>(tree: &J, version: Version, nonexistent_keys: &[HashValue])
+where
+    V: TestKey,
+    J: JellyfishMerkleTree<V> + ?Sized,
+{
     let root_hash = tree.get_root_hash(version).unwrap();
 
     for key in nonexistent_keys {
