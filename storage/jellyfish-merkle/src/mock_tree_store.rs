@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
+    get_with_proof_ext,
     node_type::{LeafNode, Node, NodeKey},
-    JellyfishMerkleTree, Result, StaleNodeIndex, TreeUpdateBatch,
+    JellyfishMerkleTree, Result, SparseMerkleProofExt, StaleNodeIndex, TreeUpdateBatch,
 };
 use aptos_infallible::RwLock;
 use aptos_storage_interface::{db_ensure as ensure, db_other_bail, AptosDbError};
@@ -62,6 +63,18 @@ where
             }
         }
         Ok(())
+    }
+
+    fn get_with_proof_ext(
+        &self,
+        key: aptos_crypto::HashValue,
+        version: Version,
+        target_root_depth: usize,
+    ) -> Result<(
+        Option<(aptos_crypto::HashValue, (K, Version))>,
+        aptos_types::proof::SparseMerkleProofExt,
+    )> {
+        get_with_proof_ext(key, version, target_root_depth, self)
     }
 }
 

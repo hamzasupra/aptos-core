@@ -171,6 +171,18 @@ impl JellyfishMerkleTree<StateKey> for StateMerkleDb {
         })?;
         self.commit_no_progress(top_level_batch, jmt_shard_batches)
     }
+
+    fn get_with_proof_ext(
+        &self,
+        key: HashValue,
+        version: Version,
+        target_root_depth: usize,
+    ) -> Result<(
+        Option<(HashValue, (StateKey, Version))>,
+        SparseMerkleProofExt,
+    )> {
+        get_with_proof_ext(key, version, target_root_depth, self)
+    }
 }
 
 impl StateMerkleDb {

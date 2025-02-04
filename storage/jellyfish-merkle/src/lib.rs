@@ -691,82 +691,7 @@ pub trait JellyfishMerkleTree<K: Key>: Send + Sync {
         key: HashValue,
         version: Version,
         target_root_depth: usize,
-    ) -> Result<(Option<(HashValue, (K, Version))>, SparseMerkleProofExt)> {
-        // Empty tree just returns proof with no sibling hash.
-        let mut next_node_key = NodeKey::new_empty_path(version);
-        let mut out_siblings = Vec::with_capacity(8); // reduces reallocation
-        let nibble_path = NibblePath::new_even(key.to_vec());
-        let mut nibble_iter = nibble_path.nibbles();
-
-        // We limit the number of loops here deliberately to avoid potential cyclic graph bugs
-        // in the tree structure.
-        for nibble_depth in 0..=ROOT_NIBBLE_HEIGHT {
-            let next_node = self
-                .get_node_with_tag(&next_node_key, "get_proof")
-                .map_err(|err| {
-                    if nibble_depth == 0 {
-                        AptosDbError::MissingRootError(version)
-                    } else {
-                        err
-                    }
-                })?;
-            match next_node {
-                Node::Internal(internal_node) => {
-                    if internal_node.leaf_count() == 1 {
-                        // Logically this node should be a leaf node, it got pushed down for
-                        // sharding, skip the siblings.
-                        let (only_child_nibble, Child { version, .. }) =
-                            internal_node.children_sorted().next().unwrap();
-                        next_node_key =
-                            next_node_key.gen_child_node_key(*version, *only_child_nibble);
-                        continue;
-                    }
-                    let queried_child_index = nibble_iter
-                        .next()
-                        .ok_or_else(|| AptosDbError::Other("ran out of nibbles".to_string()))?;
-                    let child_node_key = internal_node.get_child_with_siblings(
-                        &next_node_key,
-                        queried_child_index,
-                        Some(self),
-                        &mut out_siblings,
-                        nibble_depth * 4,
-                        target_root_depth,
-                    )?;
-                    next_node_key = match child_node_key {
-                        Some(node_key) => node_key,
-                        None => {
-                            return Ok((
-                                None,
-                                SparseMerkleProofExt::new_partial(
-                                    None,
-                                    out_siblings,
-                                    target_root_depth,
-                                ),
-                            ));
-                        },
-                    };
-                },
-                Node::Leaf(leaf_node) => {
-                    return Ok((
-                        if leaf_node.account_key() == key {
-                            Some((leaf_node.value_hash(), leaf_node.value_index().clone()))
-                        } else {
-                            None
-                        },
-                        SparseMerkleProofExt::new_partial(
-                            Some(leaf_node.into()),
-                            out_siblings,
-                            target_root_depth,
-                        ),
-                    ));
-                },
-                Node::Null => {
-                    return Ok((None, SparseMerkleProofExt::new(None, vec![])));
-                },
-            }
-        }
-        db_other_bail!("Jellyfish Merkle tree has cyclic graph inside.");
-    }
+    ) -> Result<(Option<(HashValue, (K, Version))>, SparseMerkleProofExt)>;
 
     /// Gets the proof that shows a list of keys up to `rightmost_key_to_prove` exist at `version`.
     fn get_range_proof(
@@ -1015,6 +940,90 @@ where
             Ok(Some(new_internal_node.into()))
         }
     }
+}
+
+pub fn get_with_proof_ext<K: Key, R: JellyfishMerkleTree<K>>(
+    key: aptos_crypto::HashValue,
+    version: Version,
+    target_root_depth: usize,
+    reader: &R,
+) -> Result<(
+    Option<(aptos_crypto::HashValue, (K, Version))>,
+    aptos_types::proof::SparseMerkleProofExt,
+)> {
+    // Empty tree just returns proof with no sibling hash.
+    let mut next_node_key = NodeKey::new_empty_path(version);
+    let mut out_siblings = Vec::with_capacity(8); // reduces reallocation
+    let nibble_path = NibblePath::new_even(key.to_vec());
+    let mut nibble_iter = nibble_path.nibbles();
+
+    // We limit the number of loops here deliberately to avoid potential cyclic graph bugs
+    // in the tree structure.
+    for nibble_depth in 0..=ROOT_NIBBLE_HEIGHT {
+        let next_node = reader
+            .get_node_with_tag(&next_node_key, "get_proof")
+            .map_err(|err| {
+                if nibble_depth == 0 {
+                    AptosDbError::MissingRootError(version)
+                } else {
+                    err
+                }
+            })?;
+        match next_node {
+            Node::Internal(internal_node) => {
+                if internal_node.leaf_count() == 1 {
+                    // Logically this node should be a leaf node, it got pushed down for
+                    // sharding, skip the siblings.
+                    let (only_child_nibble, Child { version, .. }) =
+                        internal_node.children_sorted().next().unwrap();
+                    next_node_key = next_node_key.gen_child_node_key(*version, *only_child_nibble);
+                    continue;
+                }
+                let queried_child_index = nibble_iter
+                    .next()
+                    .ok_or_else(|| AptosDbError::Other("ran out of nibbles".to_string()))?;
+                let child_node_key = internal_node.get_child_with_siblings(
+                    &next_node_key,
+                    queried_child_index,
+                    Some(reader),
+                    &mut out_siblings,
+                    nibble_depth * 4,
+                    target_root_depth,
+                )?;
+                next_node_key = match child_node_key {
+                    Some(node_key) => node_key,
+                    None => {
+                        return Ok((
+                            None,
+                            SparseMerkleProofExt::new_partial(
+                                None,
+                                out_siblings,
+                                target_root_depth,
+                            ),
+                        ));
+                    },
+                };
+            },
+            Node::Leaf(leaf_node) => {
+                return Ok((
+                    if leaf_node.account_key() == key {
+                        Some((leaf_node.value_hash(), leaf_node.value_index().clone()))
+                    } else {
+                        None
+                    },
+                    SparseMerkleProofExt::new_partial(
+                        Some(leaf_node.into()),
+                        out_siblings,
+                        target_root_depth,
+                    ),
+                ));
+            },
+            Node::Null => {
+                return Ok((None, SparseMerkleProofExt::new(None, vec![])));
+            },
+        }
+    }
+    db_other_bail!("Jellyfish Merkle tree has cyclic graph inside.");
 }
 
 trait NibbleExt {
