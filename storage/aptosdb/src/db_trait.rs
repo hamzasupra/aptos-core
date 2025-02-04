@@ -2,7 +2,6 @@ use aptos_schemadb::{iterator::ScanDirection, ColumnFamilyName, ReadOptions, Sch
 use std::path::Path;
 
 pub trait LDB: Send + Sync {
-    type Success;
     type Error: Error + Debug;
 
     /// Opens database with defaults
