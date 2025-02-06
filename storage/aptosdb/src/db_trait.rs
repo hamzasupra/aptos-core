@@ -1,8 +1,16 @@
-use aptos_schemadb::{iterator::ScanDirection, ColumnFamilyName, ReadOptions, SchemaBatch};
+use aptos_schemadb::iterator::SchemaIterator;
+use aptos_schemadb::ColumnFamilyDescriptor;
+use aptos_schemadb::Options;
+use aptos_schemadb::{
+    iterator::ScanDirection, schema::Schema, ColumnFamilyName, ReadOptions, SchemaBatch,
+};
+use std::error::Error;
+use std::fmt::Debug;
 use std::path::Path;
 
+/// Generic trait for key-value databases
 pub trait LDB: Send + Sync {
-    type Error: Error + Debug;
+    type Error: Error + Debug + Send + Sync;
 
     /// Opens database with defaults
     fn open(
@@ -10,7 +18,9 @@ pub trait LDB: Send + Sync {
         name: &str,
         column_families: Vec<ColumnFamilyName>,
         db_opts: &Options,
-    ) -> Result<Self, Self::Error>;
+    ) -> Result<Self, Self::Error>
+    where
+        Self: Sized;
 
     /// opens database in cf mode
     fn open_cf(
@@ -18,7 +28,9 @@ pub trait LDB: Send + Sync {
         path: impl AsRef<Path>,
         name: &str,
         cfds: Vec<ColumnFamilyDescriptor>,
-    ) -> Result<Self, Self::Error>;
+    ) -> Result<Self, Self::Error>
+    where
+        Self: Sized;
 
     /// Open db in readonly mode
     /// Note that this still assumes there's only one process that opens the same DB.
@@ -28,7 +40,9 @@ pub trait LDB: Send + Sync {
         path: impl AsRef<Path>,
         name: &str,
         cfs: Vec<ColumnFamilyName>,
-    ) -> Result<Self, Self::Error>;
+    ) -> Result<Self, Self::Error>
+    where
+        Self: Sized;
 
     fn open_cf_as_secondary<P: AsRef<Path>>(
         opts: &Options,
@@ -36,9 +50,13 @@ pub trait LDB: Send + Sync {
         secondary_path: P,
         name: &str,
         cfs: Vec<ColumnFamilyName>,
-    ) -> Result<Self, Self::Error>;
+    ) -> Result<Self, Self::Error>
+    where
+        Self: Sized;
 
-    fn log_construct(name: &str) -> Self;
+    fn log_construct(name: &str) -> Self
+    where
+        Self: Sized;
 
     /// Reads single record by key.
     fn get<S: Schema>(&self, schema_key: &S::Key) -> Result<Option<S::Value>, Self::Error>;
@@ -76,7 +94,9 @@ pub trait LDB: Send + Sync {
     /// Writes a group of records wrapped in a [`SchemaBatch`].
     fn write_schemas(&self, batch: SchemaBatch) -> Result<(), Self::Error>;
 
-    fn get_cf_handle(&self, cf_name: &str) -> Result<Self, Self::Error>;
+    fn get_cf_handle(&self, cf_name: &str) -> Result<Self, Self::Error>
+    where
+        Self: Sized;
 
     /// Flushes memtable data. This is only used for testing `get_approximate_sizes_cf` in unit
     /// tests.
