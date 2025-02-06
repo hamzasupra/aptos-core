@@ -399,18 +399,7 @@ impl StateMerkleDb {
         }?;
 
         if self.cache_enabled() {
-            self.version_caches
-                .get(&Some(shard_id))
-                .unwrap()
-                .add_version(
-                    version,
-                    tree_update_batch
-                        .node_batch
-                        .iter()
-                        .flatten()
-                        .cloned()
-                        .collect(),
-                );
+            self.update_cache(&Some(shard_id), &version, &tree_update_batch)
         }
 
         let batch = self.create_jmt_commit_batch_for_shard(
@@ -437,15 +426,7 @@ impl StateMerkleDb {
             self.put_top_levels_nodes(shard_root_nodes, base_version, version)?;
 
         if self.cache_enabled() {
-            self.version_caches.get(&None).unwrap().add_version(
-                version,
-                tree_update_batch
-                    .node_batch
-                    .iter()
-                    .flatten()
-                    .cloned()
-                    .collect(),
-            );
+            self.update_cache(&None, &version, &tree_update_batch)
         }
 
         let batch = self.create_jmt_commit_batch_for_shard(
@@ -455,6 +436,23 @@ impl StateMerkleDb {
         )?;
 
         Ok((root_hash, batch))
+    }
+
+    pub(crate) fn update_cache(
+        &self,
+        shard_id: &Option<u8>,
+        version: &Version,
+        tree_update_batch: &TreeUpdateBatch<StateKey>,
+    ) {
+        self.version_caches.get(shard_id).unwrap().add_version(
+            *version,
+            tree_update_batch
+                .node_batch
+                .iter()
+                .flatten()
+                .cloned()
+                .collect(),
+        );
     }
 
     pub(crate) fn sharding_enabled(&self) -> bool {
