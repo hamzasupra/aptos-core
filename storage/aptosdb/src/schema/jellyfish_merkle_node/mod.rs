@@ -13,7 +13,7 @@ use crate::schema::JELLYFISH_MERKLE_NODE_CF_NAME;
 use anyhow::Result;
 use aptos_jellyfish_merkle::node_type::NodeKey;
 use aptos_schemadb::{
-    define_schema,
+    define_pub_schema, define_schema,
     schema::{KeyCodec, SeekKeyCodec, ValueCodec},
 };
 use aptos_types::{state_store::state_key::StateKey, transaction::Version};
@@ -22,7 +22,7 @@ use std::mem::size_of;
 
 type Node = aptos_jellyfish_merkle::node_type::Node<StateKey>;
 
-define_schema!(
+define_pub_schema!(
     JellyfishMerkleNodeSchema,
     NodeKey,
     Node,

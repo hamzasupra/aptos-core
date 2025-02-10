@@ -12,7 +12,7 @@ pub(crate) mod db_metadata;
 pub(crate) mod epoch_by_version;
 pub(crate) mod event;
 pub(crate) mod event_accumulator;
-pub(crate) mod jellyfish_merkle_node;
+pub mod jellyfish_merkle_node;
 pub(crate) mod ledger_info;
 pub(crate) mod stale_node_index;
 pub(crate) mod stale_node_index_cross_epoch;
