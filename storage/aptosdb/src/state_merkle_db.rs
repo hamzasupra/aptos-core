@@ -4,7 +4,6 @@
 use crate::{
     common::NUM_STATE_SHARDS,
     db_options::{gen_state_merkle_cfds, state_merkle_db_column_families},
-    db_trait::LDB,
     lru_node_cache::LruNodeCache,
     metrics::{NODE_CACHE_SECONDS, OTHER_TIMERS_SECONDS},
     schema::{
