@@ -10,10 +10,7 @@ use crate::{
     utils::new_sharded_kv_schema_batch,
     AptosDB,
 };
-use aptos_jellyfish_merkle::{
-    node_type::{Node, NodeKey},
-    TreeReader,
-};
+use aptos_jellyfish_merkle::node_type::{Node, NodeKey};
 use aptos_storage_interface::{
     jmt_update_refs, jmt_updates, DbReader, DbWriter, StateSnapshotReceiver,
 };

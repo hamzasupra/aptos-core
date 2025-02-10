@@ -33,7 +33,6 @@ fn test_long_path() {
 
 fn test_n_leaves_same_version(n: usize) {
     let db = Arc::new(MockTreeStore::default());
-    let tree = JellyfishMerkleTree::new(&*db);
 
     let mut rng = StdRng::from_seed([1; 32]);
     let values: Vec<_> = (0..n).map(|_i| gen_value()).collect();
@@ -44,7 +43,7 @@ fn test_n_leaves_same_version(n: usize) {
         assert_eq!(btree.insert(key, Some(&values[index])), None);
     }
 
-    let (_root_hash, batch) = tree
+    let (_root_hash, batch) = db
         .put_value_set_test(btree.clone().into_iter().collect(), 0 /* version */)
         .unwrap();
     db.write_tree_update_batch(batch).unwrap();
@@ -59,7 +58,6 @@ fn test_n_leaves_same_version(n: usize) {
 
 fn test_n_leaves_multiple_versions(n: usize) {
     let db = Arc::new(MockTreeStore::default());
-    let tree = JellyfishMerkleTree::new(&*db);
 
     let mut rng = StdRng::from_seed([1; 32]);
 
@@ -67,7 +65,7 @@ fn test_n_leaves_multiple_versions(n: usize) {
     for i in 0..n {
         let key = HashValue::random_with_rng(&mut rng);
         let value = gen_value();
-        let (_root_hash, batch) = tree
+        let (_root_hash, batch) = db
             .put_value_set_test(vec![(key, Some(&value))], i as Version)
             .unwrap();
         assert_eq!(btree.insert(key, value), None);
@@ -78,14 +76,13 @@ fn test_n_leaves_multiple_versions(n: usize) {
 
 fn test_n_consecutive_addresses(n: usize) {
     let db = Arc::new(MockTreeStore::default());
-    let tree = JellyfishMerkleTree::new(&*db);
     let values: Vec<_> = (0..n).map(|_i| gen_value()).collect();
 
     let btree: BTreeMap<_, _> = (0..n)
         .map(|i| (HashValue::from_u64(i as u64), Some(&values[i])))
         .collect();
 
-    let (_root_hash, batch) = tree
+    let (_root_hash, batch) = db
         .put_value_set_test(btree.clone().into_iter().collect(), 0 /* version */)
         .unwrap();
     db.write_tree_update_batch(batch).unwrap();

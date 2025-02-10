@@ -6,7 +6,7 @@ use super::{
     deserialize_u64_varint, serialize_u64_varint, Child, Children, InternalNode, NodeDecodeError,
     NodeKey,
 };
-use crate::{node_type::NodeType, test_helper::ValueBlob, LeafNode, StateKey, TreeReader};
+use crate::{node_type::NodeType, test_helper::ValueBlob, JellyfishMerkleTree, LeafNode, StateKey};
 use aptos_crypto::{
     hash::{CryptoHash, SPARSE_MERKLE_PLACEHOLDER_HASH},
     HashValue,
@@ -23,7 +23,7 @@ use std::{collections::BTreeMap, io::Cursor, panic, rc::Rc};
 type Node = super::Node<crate::test_helper::ValueBlob>;
 
 struct DummyReader {}
-impl TreeReader<StateKey> for DummyReader {
+impl JellyfishMerkleTree<StateKey> for DummyReader {
     fn get_node_option(
         &self,
         _node_key: &NodeKey,
@@ -36,6 +36,25 @@ impl TreeReader<StateKey> for DummyReader {
         &self,
         _version: Version,
     ) -> Result<Option<(NodeKey, LeafNode<StateKey>)>> {
+        unimplemented!()
+    }
+
+    fn write_node_batch(
+        &self,
+        node_batch: &std::collections::HashMap<NodeKey, super::Node<StateKey>>,
+    ) -> Result<()> {
+        unimplemented!()
+    }
+
+    fn get_with_proof_ext(
+        &self,
+        key: HashValue,
+        version: Version,
+        target_root_depth: usize,
+    ) -> Result<(
+        Option<(HashValue, (StateKey, Version))>,
+        aptos_types::proof::SparseMerkleProofExt,
+    )> {
         unimplemented!()
     }
 }
@@ -543,12 +562,15 @@ fn test_internal_hash_and_proof() {
                     None
                 )
                 .unwrap(),
-            (Some(child1_node_key), vec![
-                hash_x6.into(),
-                (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-                (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-                (*SPARSE_MERKLE_PLACEHOLDER_HASH).into()
-            ])
+            (
+                Some(child1_node_key),
+                vec![
+                    hash_x6.into(),
+                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into()
+                ]
+            )
         );
 
         assert_eq!(
@@ -559,12 +581,15 @@ fn test_internal_hash_and_proof() {
                     None
                 )
                 .unwrap(),
-            (None, vec![
-                hash_x6.into(),
-                (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-                (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-                hash1.into()
-            ])
+            (
+                None,
+                vec![
+                    hash_x6.into(),
+                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                    hash1.into()
+                ]
+            )
         );
         for i in 6..8 {
             assert_eq!(
@@ -575,11 +600,14 @@ fn test_internal_hash_and_proof() {
                         None
                     )
                     .unwrap(),
-                (None, vec![
-                    hash_x6.into(),
-                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-                    hash_x1.into()
-                ])
+                (
+                    None,
+                    vec![
+                        hash_x6.into(),
+                        (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                        hash_x1.into()
+                    ]
+                )
             );
         }
 
@@ -605,11 +633,14 @@ fn test_internal_hash_and_proof() {
                         None
                     )
                     .unwrap(),
-                (None, vec![
-                    hash_x3.into(),
-                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-                    hash_x4.into()
-                ])
+                (
+                    None,
+                    vec![
+                        hash_x3.into(),
+                        (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                        hash_x4.into()
+                    ]
+                )
             );
         }
         assert_eq!(
@@ -620,12 +651,15 @@ fn test_internal_hash_and_proof() {
                     None
                 )
                 .unwrap(),
-            (None, vec![
-                hash_x3.into(),
-                (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-                (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-                hash2.into()
-            ])
+            (
+                None,
+                vec![
+                    hash_x3.into(),
+                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                    hash2.into()
+                ]
+            )
         );
         assert_eq!(
             internal_node
@@ -635,12 +669,15 @@ fn test_internal_hash_and_proof() {
                     None
                 )
                 .unwrap(),
-            (Some(child2_node_key), vec![
-                hash_x3.into(),
-                (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-                (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-                (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-            ])
+            (
+                Some(child2_node_key),
+                vec![
+                    hash_x3.into(),
+                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                ]
+            )
         );
     }
 
@@ -715,12 +752,15 @@ fn test_internal_hash_and_proof() {
                     None
                 )
                 .unwrap(),
-            (Some(child1_node_key), vec![
-                (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-                hash_x4.into(),
-                (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-                (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-            ])
+            (
+                Some(child1_node_key),
+                vec![
+                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                    hash_x4.into(),
+                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                ]
+            )
         );
 
         assert_eq!(
@@ -731,12 +771,15 @@ fn test_internal_hash_and_proof() {
                     None
                 )
                 .unwrap(),
-            (None, vec![
-                (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-                hash_x4.into(),
-                (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-                hash1.into(),
-            ])
+            (
+                None,
+                vec![
+                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                    hash_x4.into(),
+                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                    hash1.into(),
+                ]
+            )
         );
 
         for i in 2..4 {
@@ -748,11 +791,14 @@ fn test_internal_hash_and_proof() {
                         None
                     )
                     .unwrap(),
-                (None, vec![
-                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-                    hash_x4.into(),
-                    hash_x1.into()
-                ])
+                (
+                    None,
+                    vec![
+                        (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                        hash_x4.into(),
+                        hash_x1.into()
+                    ]
+                )
             );
         }
 
@@ -765,11 +811,14 @@ fn test_internal_hash_and_proof() {
                         None
                     )
                     .unwrap(),
-                (None, vec![
-                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-                    hash_x2.into(),
-                    hash_x3.into()
-                ])
+                (
+                    None,
+                    vec![
+                        (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                        hash_x2.into(),
+                        hash_x3.into()
+                    ]
+                )
             );
         }
 
@@ -781,12 +830,15 @@ fn test_internal_hash_and_proof() {
                     None
                 )
                 .unwrap(),
-            (None, vec![
-                (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-                hash_x2.into(),
-                (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-                hash2.into()
-            ])
+            (
+                None,
+                vec![
+                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                    hash_x2.into(),
+                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                    hash2.into()
+                ]
+            )
         );
 
         assert_eq!(
@@ -797,12 +849,15 @@ fn test_internal_hash_and_proof() {
                     None
                 )
                 .unwrap(),
-            (Some(child2_node_key), vec![
-                (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-                hash_x2.into(),
-                (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-                (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
-            ])
+            (
+                Some(child2_node_key),
+                vec![
+                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                    hash_x2.into(),
+                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                    (*SPARSE_MERKLE_PLACEHOLDER_HASH).into(),
+                ]
+            )
         );
 
         for i in 8..16 {
