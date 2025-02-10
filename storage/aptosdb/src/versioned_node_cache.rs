@@ -14,7 +14,7 @@ use std::{
 
 type NodeCache = HashMap<NodeKey, Node>;
 
-pub(crate) struct VersionedNodeCache {
+pub struct VersionedNodeCache {
     inner: RwLock<VecDeque<(Version, Arc<NodeCache>)>>,
 }
 
@@ -30,7 +30,7 @@ impl fmt::Debug for VersionedNodeCache {
 }
 
 impl VersionedNodeCache {
-    pub(crate) const NUM_VERSIONS_TO_CACHE: usize = 2;
+    pub const NUM_VERSIONS_TO_CACHE: usize = 2;
 
     pub fn new() -> Self {
         Self {

@@ -24,6 +24,7 @@ pub mod schema;
 pub mod state_merkle_db;
 pub mod state_restore;
 pub mod utils;
+pub mod versioned_node_cache;
 
 #[cfg(feature = "db-debugger")]
 pub mod db_debugger;
@@ -37,4 +38,3 @@ mod pruner;
 mod state_kv_db;
 mod state_store;
 mod transaction_store;
-mod versioned_node_cache;
