@@ -49,8 +49,8 @@ pub const STATE_MERKLE_DB_FOLDER_NAME: &str = "state_merkle_db";
 pub const STATE_MERKLE_DB_NAME: &str = "state_merkle_db";
 pub const STATE_MERKLE_METADATA_DB_NAME: &str = "state_merkle_metadata_db";
 
-pub(crate) type LeafNode = aptos_jellyfish_merkle::node_type::LeafNode<StateKey>;
-pub(crate) type Node = aptos_jellyfish_merkle::node_type::Node<StateKey>;
+pub type LeafNode = aptos_jellyfish_merkle::node_type::LeafNode<StateKey>;
+pub type Node = aptos_jellyfish_merkle::node_type::Node<StateKey>;
 type NodeBatch = aptos_jellyfish_merkle::NodeBatch<StateKey>;
 
 #[derive(Debug)]
@@ -67,7 +67,7 @@ pub struct StateMerkleDb {
 }
 
 impl StateMerkleDb {
-    pub(crate) fn new(
+    pub fn new(
         db_paths: &StorageDirPaths,
         rocksdb_configs: RocksdbConfigs,
         readonly: bool,
@@ -113,7 +113,7 @@ impl StateMerkleDb {
         )
     }
 
-    pub(crate) fn commit(
+    pub fn commit(
         &self,
         version: Version,
         top_levels_batch: SchemaBatch,
@@ -139,7 +139,7 @@ impl StateMerkleDb {
         self.commit_top_levels(version, top_levels_batch)
     }
 
-    pub(crate) fn commit_no_progress(
+    pub fn commit_no_progress(
         &self,
         top_level_batch: SchemaBatch,
         batches_for_shards: Vec<SchemaBatch>,
@@ -165,7 +165,7 @@ impl StateMerkleDb {
         self.state_merkle_metadata_db.write_schemas(top_level_batch)
     }
 
-    pub(crate) fn create_checkpoint(
+    pub fn create_checkpoint(
         db_root_path: impl AsRef<Path>,
         cp_root_path: impl AsRef<Path>,
         sharding: bool,
@@ -208,23 +208,23 @@ impl StateMerkleDb {
         Ok(())
     }
 
-    pub(crate) fn metadata_db(&self) -> &DB {
+    pub fn metadata_db(&self) -> &DB {
         &self.state_merkle_metadata_db
     }
 
-    pub(crate) fn metadata_db_arc(&self) -> Arc<DB> {
+    pub fn metadata_db_arc(&self) -> Arc<DB> {
         Arc::clone(&self.state_merkle_metadata_db)
     }
 
-    pub(crate) fn db_shard(&self, shard_id: u8) -> &DB {
+    pub fn db_shard(&self, shard_id: u8) -> &DB {
         &self.state_merkle_db_shards[shard_id as usize]
     }
 
-    pub(crate) fn db_shard_arc(&self, shard_id: u8) -> Arc<DB> {
+    pub fn db_shard_arc(&self, shard_id: u8) -> Arc<DB> {
         Arc::clone(&self.state_merkle_db_shards[shard_id as usize])
     }
 
-    pub(crate) fn commit_top_levels(&self, version: Version, batch: SchemaBatch) -> Result<()> {
+    pub fn commit_top_levels(&self, version: Version, batch: SchemaBatch) -> Result<()> {
         batch.put::<DbMetadataSchema>(
             &DbMetadataKey::StateMerkleCommitProgress,
             &DbMetadataValue::Version(version),
@@ -234,7 +234,7 @@ impl StateMerkleDb {
         self.state_merkle_metadata_db.write_schemas(batch)
     }
 
-    pub(crate) fn commit_single_shard(
+    pub fn commit_single_shard(
         &self,
         version: Version,
         shard_id: u8,
@@ -438,7 +438,7 @@ impl StateMerkleDb {
         Ok((root_hash, batch))
     }
 
-    pub(crate) fn update_cache(
+    pub fn update_cache(
         &self,
         shard_id: &Option<u8>,
         version: &Version,
@@ -455,34 +455,34 @@ impl StateMerkleDb {
         );
     }
 
-    pub(crate) fn sharding_enabled(&self) -> bool {
+    pub fn sharding_enabled(&self) -> bool {
         self.enable_sharding
     }
 
-    pub(crate) fn cache_enabled(&self) -> bool {
+    pub fn cache_enabled(&self) -> bool {
         self.enable_cache
     }
 
-    pub(crate) fn version_caches(&self) -> &HashMap<Option<u8>, VersionedNodeCache> {
+    pub fn version_caches(&self) -> &HashMap<Option<u8>, VersionedNodeCache> {
         &self.version_caches
     }
 
-    pub(crate) fn lru_cache(&self) -> &LruNodeCache {
+    pub fn lru_cache(&self) -> &LruNodeCache {
         &self.lru_cache
     }
 
-    pub(crate) fn write_pruner_progress(&self, version: Version) -> Result<()> {
+    pub fn write_pruner_progress(&self, version: Version) -> Result<()> {
         self.state_merkle_metadata_db.put::<DbMetadataSchema>(
             &DbMetadataKey::StateMerklePrunerProgress,
             &DbMetadataValue::Version(version),
         )
     }
 
-    pub(crate) fn num_shards(&self) -> u8 {
+    pub fn num_shards(&self) -> u8 {
         NUM_STATE_SHARDS as u8
     }
 
-    pub(crate) fn hack_num_real_shards(&self) -> usize {
+    pub fn hack_num_real_shards(&self) -> usize {
         if self.enable_sharding {
             NUM_STATE_SHARDS
         } else {
