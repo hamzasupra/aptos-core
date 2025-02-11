@@ -10,7 +10,7 @@ use std::fmt;
 
 const NUM_SHARDS: usize = 256;
 
-pub(crate) struct LruNodeCache {
+pub struct LruNodeCache {
     shards: [Mutex<LruCache<NibblePath, (Version, Node)>>; NUM_SHARDS],
 }
 
