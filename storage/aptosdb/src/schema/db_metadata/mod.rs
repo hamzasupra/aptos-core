@@ -12,7 +12,7 @@
 use crate::{schema::DB_METADATA_CF_NAME, state_restore::StateSnapshotProgress};
 use anyhow::Result;
 use aptos_schemadb::{
-    define_schema,
+    define_pub_schema,
     schema::{KeyCodec, ValueCodec},
 };
 use aptos_types::transaction::Version;
@@ -69,7 +69,7 @@ pub enum DbMetadataKey {
     TransactionAuxiliaryDataPrunerProgress,
 }
 
-define_schema!(
+define_pub_schema!(
     DbMetadataSchema,
     DbMetadataKey,
     DbMetadataValue,
