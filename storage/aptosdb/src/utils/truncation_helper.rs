@@ -47,14 +47,14 @@ use std::{
     },
 };
 
-pub(crate) fn get_state_kv_commit_progress(state_kv_db: &StateKvDb) -> Result<Option<Version>> {
+pub fn get_state_kv_commit_progress(state_kv_db: &StateKvDb) -> Result<Option<Version>> {
     get_progress(
         state_kv_db.metadata_db(),
         &DbMetadataKey::StateKvCommitProgress,
     )
 }
 
-pub(crate) fn get_state_merkle_commit_progress(
+pub fn get_state_merkle_commit_progress(
     state_merkle_db: &StateMerkleDb,
 ) -> Result<Option<Version>> {
     get_progress(
@@ -63,7 +63,7 @@ pub(crate) fn get_state_merkle_commit_progress(
     )
 }
 
-pub(crate) fn truncate_ledger_db(ledger_db: Arc<LedgerDb>, target_version: Version) -> Result<()> {
+pub fn truncate_ledger_db(ledger_db: Arc<LedgerDb>, target_version: Version) -> Result<()> {
     let transaction_store = TransactionStore::new(Arc::clone(&ledger_db));
 
     let start_version = target_version + 1;
@@ -71,7 +71,7 @@ pub(crate) fn truncate_ledger_db(ledger_db: Arc<LedgerDb>, target_version: Versi
     Ok(())
 }
 
-pub(crate) fn truncate_state_kv_db(
+pub fn truncate_state_kv_db(
     state_kv_db: &StateKvDb,
     current_version: Version,
     target_version: Version,
@@ -108,10 +108,7 @@ pub(crate) fn truncate_state_kv_db(
     Ok(())
 }
 
-pub(crate) fn truncate_state_kv_db_shards(
-    state_kv_db: &StateKvDb,
-    target_version: Version,
-) -> Result<()> {
+pub fn truncate_state_kv_db_shards(state_kv_db: &StateKvDb, target_version: Version) -> Result<()> {
     (0..state_kv_db.hack_num_real_shards())
         .into_par_iter()
         .try_for_each(|shard_id| {
@@ -119,7 +116,7 @@ pub(crate) fn truncate_state_kv_db_shards(
         })
 }
 
-pub(crate) fn truncate_state_kv_db_single_shard(
+pub fn truncate_state_kv_db_single_shard(
     state_kv_db: &StateKvDb,
     shard_id: u8,
     target_version: Version,
@@ -134,7 +131,7 @@ pub(crate) fn truncate_state_kv_db_single_shard(
     state_kv_db.commit_single_shard(target_version, shard_id, batch)
 }
 
-pub(crate) fn truncate_state_merkle_db(
+pub fn truncate_state_merkle_db(
     state_merkle_db: &StateMerkleDb,
     target_version: Version,
 ) -> Result<()> {
@@ -169,7 +166,7 @@ pub(crate) fn truncate_state_merkle_db(
     Ok(())
 }
 
-pub(crate) fn truncate_state_merkle_db_shards(
+pub fn truncate_state_merkle_db_shards(
     state_merkle_db: &StateMerkleDb,
     target_version: Version,
 ) -> Result<()> {
@@ -180,7 +177,7 @@ pub(crate) fn truncate_state_merkle_db_shards(
         })
 }
 
-pub(crate) fn truncate_state_merkle_db_single_shard(
+pub fn truncate_state_merkle_db_single_shard(
     state_merkle_db: &StateMerkleDb,
     shard_id: u8,
     target_version: Version,
@@ -194,13 +191,13 @@ pub(crate) fn truncate_state_merkle_db_single_shard(
     state_merkle_db.commit_single_shard(target_version, shard_id, batch)
 }
 
-pub(crate) fn get_current_version_in_state_merkle_db(
+pub fn get_current_version_in_state_merkle_db(
     state_merkle_db: &StateMerkleDb,
 ) -> Result<Option<Version>> {
     find_closest_node_version_at_or_before(state_merkle_db, u64::max_value())
 }
 
-pub(crate) fn find_closest_node_version_at_or_before(
+pub fn find_closest_node_version_at_or_before(
     state_merkle_db: &StateMerkleDb,
     version: Version,
 ) -> Result<Option<Version>> {
@@ -211,7 +208,7 @@ pub(crate) fn find_closest_node_version_at_or_before(
     Ok(iter.next().transpose()?.map(|item| item.0.version()))
 }
 
-pub(crate) fn num_frozen_nodes_in_accumulator(num_leaves: u64) -> u64 {
+pub fn num_frozen_nodes_in_accumulator(num_leaves: u64) -> u64 {
     2 * num_leaves - num_leaves.count_ones() as u64
 }
 
