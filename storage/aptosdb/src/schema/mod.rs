@@ -4,30 +4,30 @@
 //! This module defines representation of Aptos core data structures at physical level via schemas
 //! that implement [`aptos_schemadb::schema::Schema`].
 //!
-//! All schemas are `pub(crate)` so not shown in rustdoc, refer to the source code to see details.
+//! All schemas are `pub` so not shown in rustdoc, refer to the source code to see details.
 
-pub(crate) mod block_by_version;
-pub(crate) mod block_info;
-pub(crate) mod db_metadata;
-pub(crate) mod epoch_by_version;
-pub(crate) mod event;
-pub(crate) mod event_accumulator;
-pub(crate) mod jellyfish_merkle_node;
-pub(crate) mod ledger_info;
-pub(crate) mod stale_node_index;
-pub(crate) mod stale_node_index_cross_epoch;
-pub(crate) mod stale_state_value_index;
-pub(crate) mod stale_state_value_index_by_key_hash;
-pub(crate) mod state_value;
-pub(crate) mod state_value_by_key_hash;
-pub(crate) mod state_value_index;
-pub(crate) mod transaction;
-pub(crate) mod transaction_accumulator;
-pub(crate) mod transaction_auxiliary_data;
-pub(crate) mod transaction_by_hash;
-pub(crate) mod transaction_info;
-pub(crate) mod version_data;
-pub(crate) mod write_set;
+pub mod block_by_version;
+pub mod block_info;
+pub mod db_metadata;
+pub mod epoch_by_version;
+pub mod event;
+pub mod event_accumulator;
+pub mod jellyfish_merkle_node;
+pub mod ledger_info;
+pub mod stale_node_index;
+pub mod stale_node_index_cross_epoch;
+pub mod stale_state_value_index;
+pub mod stale_state_value_index_by_key_hash;
+pub mod state_value;
+pub mod state_value_by_key_hash;
+pub mod state_value_index;
+pub mod transaction;
+pub mod transaction_accumulator;
+pub mod transaction_auxiliary_data;
+pub mod transaction_by_hash;
+pub mod transaction_info;
+pub mod version_data;
+pub mod write_set;
 
 use anyhow::{ensure, Result};
 use aptos_schemadb::ColumnFamilyName;

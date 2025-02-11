@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod iterators;
-pub(crate) mod truncation_helper;
+pub mod truncation_helper;
 
 use crate::{
     common::NUM_STATE_SHARDS,
